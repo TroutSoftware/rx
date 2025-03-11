@@ -34,6 +34,14 @@ func (n *Node) AddAttr(kv ...string) *Node {
 	}
 	return n
 }
+func (n *Node) GetAttr(attr string) string {
+	for _, a := range n.Attrs {
+		if a.Name == attr {
+			return a.Value
+		}
+	}
+	return ""
+}
 func (n *Node) OnIntent(evt IntentType, h Action) *Node {
 	n.hdl[evt] = h
 	return n
@@ -77,6 +85,15 @@ func (n *Node) AddBoolAttr(key string, val bool) *Node {
 
 func (n *Node) IsNothing() bool {
 	return n.TagName == "nothing"
+}
+
+// ElementID returns the Element.id property.
+// This can be used in referencing, e.g. "for" properties.
+func (n *Node) ElementID(ctx Context) string {
+	if n.Entity == 0 {
+		n.GiveKey(ctx)
+	}
+	return strconv.FormatUint(uint64(n.Entity), 10)
 }
 
 func printEntityTreeRec(n *Node, strb *strings.Builder, level int) {

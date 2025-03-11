@@ -41,13 +41,17 @@ type Engine struct {
 //	ngx, start := rx.New()
 //	// finish initialization with ngx
 //	start()
-func New(root Widget) (*Engine, func()) {
+func New(root Widget, ctx ...any) *Engine {
 	ng := &Engine{
 		XAS:        make(chan XAS),
 		free:       make(chan XAS),
 		Actions:    make(chan Action), // protect the call frame until processed
 		Root:       root,
 		genHandler: newLogHandler(),
+	}
+	ng.g0 = &vctx{kv: make(map[ContextKey]any)}
+	for i := 0; i < len(ctx); i += 2 {
+		ng.g0.kv[ctx[i].(ContextKey)] = ctx[i+1]
 	}
 	ng.logger = slog.New(ng.genHandler)
 
@@ -61,7 +65,7 @@ func New(root Widget) (*Engine, func()) {
 			// Note about the order: the continuation must be called synchronously
 			// so we can set correctly drag and drop data [dnd].
 			// Still, we make sure that the continuation happens after the view is updated.
-			// This is also happeninig even if no rendering happens (the NoAction context).
+			// This is also happening even if no rendering happens (the NoAction context).
 			//
 			// [dnd] https://html.spec.whatwg.org/multipage/dnd.html#concept-dnd-rw
 			if ng.Continuation != nil {
@@ -74,7 +78,7 @@ func New(root Widget) (*Engine, func()) {
 
 	// empty action primes the loop
 
-	return ng, func() { ng.Actions <- func(c Context) Context { return WithValue(c, RootKey, root) } }
+	return ng
 }
 
 func Mouse_(ctx Context) Coord         { return ctx.ng.Mouse }
@@ -88,7 +92,7 @@ func Logger_(ctx Context) *slog.Logger { return ctx.ng.logger }
 
 // Coordinate of any object in the viewport
 //
-// As per UI convention, X is left to right, and Y is top to bottom
+// As per UI convention, X is left to right, and Y is top to bottom
 type Coord struct{ X, Y int }
 type Action func(Context) Context
 type Widget interface{ Build(Context) *Node }
@@ -142,6 +146,7 @@ func randPick() bool {
 // ReleaseXAS is used by the main routine to prevent too much allocations
 func (ng *Engine) ReleaseXAS(buf XAS) { ng.free <- buf }
 
+// ReactToIntent
 func (ng *Engine) ReactToIntent(cf CallFrame) {
 	do := func(ctx Context) Context {
 		if cf.Gen != ng.gen {
@@ -186,9 +191,10 @@ const (
 	Change
 	Blur
 	ChangeView
-	CellIDChange
+	ManifestChange
 	ShowDebugMenu
 	CellSizeChange
+	Submit
 	Seppuku // must be last, used to size intentHandler
 	// run "go generate ./..." after updating this list
 )

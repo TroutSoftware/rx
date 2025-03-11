@@ -21,15 +21,16 @@ func _() {
 	_ = x[Change-10]
 	_ = x[Blur-11]
 	_ = x[ChangeView-12]
-	_ = x[CellIDChange-13]
+	_ = x[ManifestChange-13]
 	_ = x[ShowDebugMenu-14]
 	_ = x[CellSizeChange-15]
-	_ = x[Seppuku-16]
+	_ = x[Submit-16]
+	_ = x[Seppuku-17]
 }
 
-const _IntentType_name = "NoIntentClickDoubleClickDragStartDragOverDragEndDropEscPressScrollFilterChangeBlurChangeViewCellIDChangeShowDebugMenuCellSizeChangeSeppuku"
+const _IntentType_name = "NoIntentClickDoubleClickDragStartDragOverDragEndDropEscPressScrollFilterChangeBlurChangeViewManifestChangeShowDebugMenuCellSizeChangeSubmitSeppuku"
 
-var _IntentType_index = [...]uint8{0, 8, 13, 24, 33, 41, 48, 52, 60, 66, 72, 78, 82, 92, 104, 117, 131, 138}
+var _IntentType_index = [...]uint8{0, 8, 13, 24, 33, 41, 48, 52, 60, 66, 72, 78, 82, 92, 106, 119, 133, 139, 146}
 
 func (i IntentType) String() string {
 	if i < 0 || i >= IntentType(len(_IntentType_index)-1) {

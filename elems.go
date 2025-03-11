@@ -3,6 +3,7 @@ package rx
 import (
 	"errors"
 	"io"
+	"strings"
 	"sync"
 )
 
@@ -115,7 +116,7 @@ func (vm qVM) run(tpl string) *Node {
 		case qClasses:
 			p.Classes = tpl[op.R1:op.R2]
 		case qText:
-			p.Text = tpl[op.R1:op.R2]
+			p.Text = unescape(tpl[op.R1:op.R2])
 		}
 	}
 
@@ -123,6 +124,38 @@ func (vm qVM) run(tpl string) *Node {
 		panic("invalid tag")
 	}
 	return p
+}
+
+func unescape(s string) string {
+	result := make([]byte, 0, len(s))
+
+	for i := 0; i < len(s); i++ {
+		if s[i] == '&' {
+			switch {
+			case strings.HasPrefix(s[i:], "&lt;"):
+				result = append(result, '<')
+				i += 3
+			case strings.HasPrefix(s[i:], "&gt;"):
+				result = append(result, '>')
+				i += 3
+			case strings.HasPrefix(s[i:], "&amp;"):
+				result = append(result, '&')
+				i += 4
+			case strings.HasPrefix(s[i:], "&quot;"):
+				result = append(result, '"')
+				i += 5
+			case strings.HasPrefix(s[i:], "&apos;"):
+				result = append(result, '\'')
+				i += 5
+			default:
+				result = append(result, s[i])
+			}
+		} else {
+			result = append(result, s[i])
+		}
+	}
+
+	return string(result)
 }
 
 func pop(stack []*Node) (*Node, []*Node) {

@@ -37,7 +37,7 @@ type CallFrame struct {
 	Entity
 
 	Mouse     Coord
-	Point     int
+	Point     int // DEPRECATED: Only meaningful with the lioli
 	Registers [4]JSValue
 	Returns   [4]JSValue
 	Modifiers struct {
@@ -55,12 +55,12 @@ func R3(ctx Context) string { return ctx.ng.Registers[2].String() }
 func R4(ctx Context) string { return ctx.ng.Registers[3].String() }
 
 // Continuation outputs
-func S1(ctx Context, v any) { ctx.ng.Returns[0] = ValueOf(v) } //lint:ignore U1000 this is an API
-func S2(ctx Context, v any) { ctx.ng.Returns[1] = ValueOf(v) } //lint:ignore U1000 this is an API
-func S3(ctx Context, v any) { ctx.ng.Returns[2] = ValueOf(v) } //lint:ignore U1000 this is an API
-func S4(ctx Context, v any) { ctx.ng.Returns[3] = ValueOf(v) } //lint:ignore U1000 this is an API
+func S1(ctx Context, v any) { ctx.ng.Returns[0] = _panicOn(v) } //lint:ignore U1000 this is an API
+func S2(ctx Context, v any) { ctx.ng.Returns[1] = _panicOn(v) } //lint:ignore U1000 this is an API
+func S3(ctx Context, v any) { ctx.ng.Returns[2] = _panicOn(v) } //lint:ignore U1000 this is an API
+func S4(ctx Context, v any) { ctx.ng.Returns[3] = _panicOn(v) } //lint:ignore U1000 this is an API
 
-func ValueOf(any) JSValue { panic("not implemented") }
+func _panicOn(any) JSValue { panic("not implemented") }
 
 func Pipe() (JSValue, io.WriteCloser) {
 	panic("not implemented")

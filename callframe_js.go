@@ -3,7 +3,7 @@ package rx
 import (
 	"syscall/js"
 
-	"trout.software/kraken/webapp/internal/sys"
+	"trout.software/rx/internal/sys"
 )
 
 var Pipe = sys.Pipe
