@@ -3,7 +3,7 @@ package rx
 import (
 	"syscall/js"
 
-	"trout.software/rx/internal/sys"
+	"github.com/TroutSoftware/rx/internal/sys"
 )
 
 var Pipe = sys.Pipe
