@@ -3,6 +3,7 @@ package rx
 import (
 	"log/slog"
 	"math/rand"
+	"reflect"
 )
 
 // should be enabled by default, but currently need fix in drag&drop (since this would destroy the persistent entities)
@@ -49,9 +50,9 @@ func New(root Widget, ctx ...any) *Engine {
 		Root:       root,
 		genHandler: newLogHandler(),
 	}
-	ng.g0 = &vctx{kv: make(map[ContextKey]any)}
-	for i := 0; i < len(ctx); i += 2 {
-		ng.g0.kv[ctx[i].(ContextKey)] = ctx[i+1]
+	ng.g0 = &vctx{kv: make(map[reflect.Type]any)}
+	for i := range ctx {
+		ng.g0.kv[reflect.TypeOf(ctx[i])] = ctx[i]
 	}
 	ng.logger = slog.New(ng.genHandler)
 
