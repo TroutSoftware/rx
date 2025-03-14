@@ -46,6 +46,12 @@ func (n *Node) OnIntent(evt IntentType, h Action) *Node {
 	n.hdl[evt] = h
 	return n
 }
+
+// React is a executes state mutators on an event
+func (n *Node) React(evt IntentType, mutators ...any) *Node {
+	return n.OnIntent(evt, Mutate(mutators...))
+}
+
 func (n *Node) Focus(ctx Context) *Node { n.Focused = true; return n.GiveKey(ctx) }
 
 // Set ARIA role, using the "role" property

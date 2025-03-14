@@ -1,6 +1,7 @@
 package rx
 
 import (
+	"reflect"
 	"sync"
 )
 
@@ -26,30 +27,10 @@ var NoAction Context
 func DoNothing(ctx Context) Context { return NoAction }
 
 // vctx is a lock-protected map.
-// TODO should not be protected, context is not thread-safe
-// TODO this should be a structurally shareable data structure
 type vctx struct {
 	ml sync.Mutex
-	kv map[ContextKey]any
+	kv map[reflect.Type]any
 }
-
-// ContextKey is a unique key to identify a value in the context.
-// To ensure uniqueness, users of the library should start their own keys using [LastRXKey]:
-//
-//	 const (
-//	 	RESTProviderKey = rx.LastRXKey + iota
-//	 	DataStoreKey
-//			...
-//	 )
-type ContextKey uint16
-
-const (
-	NoKey ContextKey = iota
-	ErrorKey
-	RootKey
-	LastRXKey // use as starting point
-
-)
 
 // WithValue adds a new value in the context, which should be passed down the building stack.
 // Existing values of the same key are hidden, but not overwritten.
@@ -59,49 +40,33 @@ const (
 // The happens-after relationship could look a bit counter-intuitive; without further synchronization, two goroutines G1 and G2 would be able to write their value, but read the value from the other goroutine.
 // We believe this is an acceptable tradeoff as this is not a common case, and adding synchronization (e.g. through channels) is both trivial, and clearer anyway.
 // We do ensure that the data structure remains valid from concurrent access.
-func WithValue(ctx Context, key ContextKey, value any) Context {
+func WithValue[T comparable](ctx Context, value T) Context {
 	if ctx.vx == nil {
-		ctx.vx = &vctx{kv: make(map[ContextKey]any)}
+		ctx.vx = &vctx{kv: make(map[reflect.Type]any)}
 	}
 
 	ctx.vx.ml.Lock()
-	ctx.vx.kv[key] = value
+	ctx.vx.kv[reflect.TypeFor[T]()] = value
 	ctx.vx.ml.Unlock()
 	return ctx
 }
 func WithValues(ctx Context, v ...any) Context {
 	if ctx.vx == nil {
-		ctx.vx = &vctx{kv: make(map[ContextKey]any)}
+		ctx.vx = &vctx{kv: make(map[reflect.Type]any)}
 	}
 
 	ctx.vx.ml.Lock()
-	for i := 0; i < len(v); i += 2 {
-		ctx.vx.kv[v[i].(ContextKey)] = v[i+1]
+	for i := range v {
+		ctx.vx.kv[reflect.TypeOf(i)] = v
 	}
 
 	ctx.vx.ml.Unlock()
 	return ctx
 }
 
-// Value retrieves the value matching the corresponding key.
-// If no such value exists, nil is returned.
-//
-// Value is deprecated, [ValueOf] should be used instead
-func Value(ctx Context, key ContextKey) any {
-	vx := ctx.vx
-	if vx == nil {
-		return nil
-	}
-
-	vx.ml.Lock()
-	val := vx.kv[key]
-	vx.ml.Unlock()
-	return val
-}
-
 // ValueOf returns a value of type T at key.
 // If the type of T is invalid, the function panics.
-func ValueOf[T any](ctx Context, key ContextKey) T {
+func ValueOf[T comparable](ctx Context) T {
 	var z T
 
 	vx := ctx.vx
@@ -109,22 +74,37 @@ func ValueOf[T any](ctx Context, key ContextKey) T {
 		return z
 	}
 
-	val, ok := vx.kv[key]
+	val, ok := vx.kv[reflect.TypeFor[T]()]
 	if !ok {
 		return z
 	}
 	return val.(T)
-
 }
 
-// CleanValue deletes all values corresponding for a given key.
-func CleanValue(ctx Context, key ContextKey) {
-	vx := ctx.vx
-	if vx == nil {
-		return
-	}
+// Mutate executes all mutators (which must be functions taking exactly one pointer)
+// by loading the value from the context, modifying it with the mutator and storign it.
+// If the type is not yet registered in the context, the zero value is used instead
+// It panics if the mutators are of the wrong type
+func Mutate(mutators ...any) Action {
+	return func(ctx Context) Context {
+		for _, m := range mutators {
+			tt := reflect.TypeOf(m)
+			if tt.Kind() != reflect.Func || tt.NumIn() != 1 || tt.In(0).Kind() != reflect.Pointer || tt.NumOut() != 0 {
+				panic("mutator must be functions of one pointer argument")
+			}
 
-	vx.ml.Lock()
-	delete(vx.kv, key)
-	vx.ml.Unlock()
+			kt := tt.In(0).Elem()
+
+			ctx.vx.ml.Lock()
+			v := reflect.New(kt)
+			if vv, ok := ctx.vx.kv[kt]; ok {
+				v.Elem().Set(reflect.ValueOf(vv))
+			}
+
+			reflect.ValueOf(m).Call([]reflect.Value{v})
+			ctx.vx.kv[kt] = v.Elem().Interface()
+			ctx.vx.ml.Unlock()
+		}
+		return ctx
+	}
 }
