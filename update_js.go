@@ -68,7 +68,7 @@ func (ngx *Engine) JSUpdate() js.Func {
 func (ngx *Engine) DrawAndLoop(drawfn js.Value) {
 	uintArr := js.Global().Get("Uint8Array")
 
-	ngx.Actions <- func(c Context) Context { return WithValue(c, RootKey, ngx.Root) }
+	ngx.Actions <- func(c Context) Context { return WithValue(c, ngx.Root) }
 	for vm := range ngx.XAS {
 		prog := uintArr.New(len(vm))
 		js.CopyBytesToJS(prog, vm)

@@ -28,13 +28,15 @@ type Engine struct {
 	gen int
 	g0  *vctx
 
-	Root       Widget
+	Root       RootWidget
 	Screen     Coord
 	CellHeight int
 	// derived from jsWorld
 	// @see rx-browser/main_js.go
 	CallFrame
 }
+
+type RootWidget Widget
 
 // New initializes a rendering engine, rooted at root.
 // The second value is a start function, to execute when rendering the engine:
