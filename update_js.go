@@ -31,7 +31,7 @@ func (ngx *Engine) JSUpdate() js.Func {
 			cf.Point = v.Int()
 		}
 		regs := world.Get("registers")
-		for i := 0; i < 4; i++ {
+		for i := range cf.Registers {
 			cf.Registers[i] = regs.Index(i)
 		}
 		cf.Modifiers = struct {
