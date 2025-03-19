@@ -40,7 +40,7 @@ type vctx struct {
 // The happens-after relationship could look a bit counter-intuitive; without further synchronization, two goroutines G1 and G2 would be able to write their value, but read the value from the other goroutine.
 // We believe this is an acceptable tradeoff as this is not a common case, and adding synchronization (e.g. through channels) is both trivial, and clearer anyway.
 // We do ensure that the data structure remains valid from concurrent access.
-func WithValue[T comparable](ctx Context, value T) Context {
+func WithValue[T any](ctx Context, value T) Context {
 	if ctx.vx == nil {
 		ctx.vx = &vctx{kv: make(map[reflect.Type]any)}
 	}
@@ -66,7 +66,7 @@ func WithValues(ctx Context, v ...any) Context {
 
 // ValueOf returns a value of type T at key.
 // If the type of T is invalid, the function panics.
-func ValueOf[T comparable](ctx Context) T {
+func ValueOf[T any](ctx Context) T {
 	var z T
 
 	vx := ctx.vx
