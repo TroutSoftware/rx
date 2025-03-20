@@ -56,8 +56,8 @@ func WithValues(ctx Context, v ...any) Context {
 	}
 
 	ctx.vx.ml.Lock()
-	for i := range v {
-		ctx.vx.kv[reflect.TypeOf(i)] = v
+	for _, v := range v {
+		ctx.vx.kv[reflect.TypeOf(v)] = v
 	}
 
 	ctx.vx.ml.Unlock()
@@ -106,5 +106,12 @@ func Mutate(mutators ...any) Action {
 			ctx.vx.ml.Unlock()
 		}
 		return ctx
+	}
+}
+
+// LoadContext loads all values in context (cf [New])
+func LoadContext(values ...any) Action {
+	return func(ctx Context) Context {
+		return WithValues(ctx, values...)
 	}
 }

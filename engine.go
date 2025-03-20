@@ -28,11 +28,8 @@ type Engine struct {
 	gen int
 	g0  *vctx
 
-	Root       RootWidget
-	Screen     Coord
-	CellHeight int
-	// derived from jsWorld
-	// @see rx-browser/main_js.go
+	Root   RootWidget
+	Screen Coord
 	CallFrame
 }
 
@@ -44,7 +41,7 @@ type RootWidget Widget
 //	ngx, start := rx.New()
 //	// finish initialization with ngx
 //	start()
-func New(root Widget, ctx ...any) *Engine {
+func New(root Widget, ctx ...Action) *Engine {
 	ng := &Engine{
 		XAS:        make(chan XAS),
 		free:       make(chan XAS),
@@ -53,8 +50,8 @@ func New(root Widget, ctx ...any) *Engine {
 		genHandler: newLogHandler(),
 	}
 	ng.g0 = &vctx{kv: make(map[reflect.Type]any)}
-	for i := range ctx {
-		ng.g0.kv[reflect.TypeOf(ctx[i])] = ctx[i]
+	for _, f := range ctx {
+		ng.g0 = f(Context{vx: ng.g0}).vx
 	}
 	ng.logger = slog.New(ng.genHandler)
 
@@ -86,7 +83,6 @@ func New(root Widget, ctx ...any) *Engine {
 
 func Mouse_(ctx Context) Coord         { return ctx.ng.Mouse }
 func Screen_(ctx Context) Coord        { return ctx.ng.Screen }
-func CellHeight_(ctx Context) int      { return ctx.ng.CellHeight }
 func Point_(ctx Context) int           { return ctx.ng.Point }
 func Entity_(ctx Context) Entity       { return ctx.ng.Entity }
 func Actions_(ctx Context) chan Action { return ctx.ng.Actions }
