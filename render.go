@@ -30,7 +30,16 @@ func (n *Node) GiveKey(ctx Context) *Node     { n.Entity = ctx.ng.cnt.Inc(); ret
 func (n *Node) AddAttr(kv ...string) *Node {
 	// TODO(rdo) static check for the right number of arguments
 	for i := 0; i < len(kv); i += 2 {
-		n.Attrs = append(n.Attrs, Attr{Name: kv[i], Value: kv[i+1]})
+		seen := false
+		for j := range n.Attrs {
+			if n.Attrs[j].Name == kv[i] {
+				n.Attrs[j].Value = kv[i+1]
+				seen = true
+			}
+		}
+		if !seen {
+			n.Attrs = append(n.Attrs, Attr{Name: kv[i], Value: kv[i+1]})
+		}
 	}
 	return n
 }
