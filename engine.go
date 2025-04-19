@@ -30,7 +30,6 @@ type Engine struct {
 
 	Root   RootWidget
 	Screen Coord
-	CellHeight int
 	CallFrame
 }
 
@@ -84,7 +83,6 @@ func New(root Widget, ctx ...Action) *Engine {
 
 func Mouse_(ctx Context) Coord         { return ctx.ng.Mouse }
 func Screen_(ctx Context) Coord        { return ctx.ng.Screen }
-func CellHeight_(ctx Context) int      { return ctx.ng.CellHeight }
 func Point_(ctx Context) int           { return ctx.ng.Point }
 func Entity_(ctx Context) Entity       { return ctx.ng.Entity }
 func Actions_(ctx Context) chan Action { return ctx.ng.Actions }
