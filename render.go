@@ -43,6 +43,9 @@ func (n *Node) AddAttr(kv ...string) *Node {
 	}
 	return n
 }
+
+// GetAttr returns the value set for the attribute.
+// An empty string is returned if no value is set.
 func (n *Node) GetAttr(attr string) string {
 	for _, a := range n.Attrs {
 		if a.Name == attr {
@@ -51,7 +54,17 @@ func (n *Node) GetAttr(attr string) string {
 	}
 	return ""
 }
+
+// OnIntent attaches the action to the intent.
+//
+// When the intent is fired on the node (browser-side),
+// the action is executed on the current context, leading to a new context.
+// The new view is then rendered based on the new context.
 func (n *Node) OnIntent(evt IntentType, h Action) *Node {
+	if h == nil {
+		return n
+	}
+
 	n.hdl[evt] = h
 	return n
 }
@@ -61,6 +74,9 @@ func (n *Node) React(evt IntentType, mutators ...any) *Node {
 	return n.OnIntent(evt, Mutate(mutators...))
 }
 
+// Focus calls the [focus] method on the final element
+//
+// [focus]: https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus
 func (n *Node) Focus(ctx Context) *Node { n.Focused = true; return n.GiveKey(ctx) }
 
 // Set ARIA role, using the "role" property
