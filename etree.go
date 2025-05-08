@@ -25,7 +25,7 @@ func (i *intentHandler) Some() bool {
 // it is used in the engine, where each turn of the crank results in a new gen
 type etree struct {
 	g0, g1 []prenode
-	sparse [1024]int
+	sparse [10240]int
 }
 
 // ngen starts recording a new generation of entities
@@ -40,7 +40,7 @@ func (t *etree) ngen() {
 // add adds an entity to the current tree.
 // by default, the entity is open on the left: you must call [etree.closeLeft] if the entity does not have children
 func (t *etree) add(nt Entity) int {
-	assert(nt < 1024, "cannot store more than 1024 entities in event handler")
+	assert(nt < 10240, "cannot store more than 10240 entities in event handler")
 
 	t.g0 = append(t.g0, prenode{ntt: nt})
 	return len(t.g0) - 1
