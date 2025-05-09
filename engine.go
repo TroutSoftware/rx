@@ -175,7 +175,7 @@ func (ng *Engine) ReactToIntent(cf CallFrame) {
 
 type IntentType int
 
-//go:generate go tool golang.org/x/tools/cmd/stringer -type IntentType
+//go:generate go tool stringer -type IntentType
 //go:generate go tool rxabi -type IntentType
 
 const (
