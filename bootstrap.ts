@@ -1,13 +1,12 @@
 import Go from "./wasm_exec.mjs";
 import { OpType } from "./optype_abi";
 import { IntentType } from "./intenttype_abi";
-import { EventsCodes } from "../webc/datacell-abi";
-import { listFlags } from "../utils/flags";
 
 type registers = [r1: any, r2: any, r3: any, r4: any];
 export type modifiers = [ctrl: boolean, shift: boolean, alt: boolean];
 type FourArgs = [c1: any, c2: any, c3: any, c4: any];
-
+const DEBOUNCE_TIMEOUT = 60; // ms time range. Tuned to ~1 event / rendering cycle at 16 fps
+const DRAG_FORMAT = "x-t.sftw/drag-data";
 type World = {
   registers: registers;
   mouse: [x: number, y: number];
@@ -80,7 +79,7 @@ class Renderer extends HTMLElement {
   // [CSSStyleSheet]: https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet
   static cachedStyleSheet: CSSStyleSheet;
   shadowRoot: ShadowRoot; // asserted in constructor
-
+  debounce: boolean = false;
   go: Go;
   gen = 0;
   mxevent: boolean = false; // protects event loop task
@@ -138,17 +137,33 @@ class Renderer extends HTMLElement {
     this.shadowRoot.addEventListener("click", this);
     this.shadowRoot.addEventListener("dblclick", this);
     this.shadowRoot.addEventListener("contextmenu", this);
-    this.shadowRoot.addEventListener("change", this);
+    // this.shadowRoot.addEventListener("change", this);
     this.shadowRoot.addEventListener("focusout", this);
+    this.shadowRoot.addEventListener("dragover", this);
+    this.shadowRoot.addEventListener("dragenter", this);
+    this.shadowRoot.addEventListener("drop", this);
+    this.shadowRoot.addEventListener("dragend", this);
+    this.shadowRoot.addEventListener("dragstart", this);
+    this.shadowRoot.addEventListener("keyup", this);
     // document-tied events, must be removed in disconnectedCallback
     document.addEventListener("mousemove", this);
-
+    document.addEventListener("wheel", this, { passive: false });
+    
     const env: { [key: string]: string } = {};
-    env["FLAGS"] = Object.keys(await listFlags()).join(",");
     for (const key in this.dataset) {
       env[key] = this.dataset[key]!;
     }
-    this.go = new Go([], env, this as any);
+
+    let args = [];
+    if (this.hasAttribute("page")) {
+      args = ["-page", this.getAttribute("page"), ...args];
+    }
+
+    if (this.hasAttribute("initial-datum")) {
+      args = ["-datum", this.getAttribute("initial-datum"), ...args];
+    }
+
+    this.go = new Go(args, env, this as any);
     await this.module
       .then((module) => WebAssembly.instantiate(module, this.go.importObject))
       .then((obj) => this.go.run(obj, this._tripModule));
@@ -176,11 +191,10 @@ class Renderer extends HTMLElement {
     if (isClick(event) || isRightClick(event) || isDoubleClick(event)) {
       assertsMouseEvent(event);
       event.preventDefault();
-
       // capture the mouse, in case the events gets delayed too much
       const mouse: [x: number, y: number] = [event.clientX, event.clientY];
 
-      const target = this.locateEntity(event.target);
+      const target = this.locateEntity(event.target)
       if (target == null) {
         return;
       }
@@ -214,37 +228,109 @@ class Renderer extends HTMLElement {
             continuation,
           }),
       );
+
+      // See /RedirectTo/
+      if (act === "redirect") {
+        window.open(name, "_blank");
+      }
+
+      // See /CopyToClipboard/
+      if (act === "copyToClipboard") {
+        navigator.clipboard.writeText(name)
+      }
     } else if (event.type === "change") {
-      /*if (!!(event.target as HTMLElement).closest('form')) {
-        let data = new FormData((event.target as HTMLElement).closest('form'))
-        // console.log("Data: ", data.get("description"))
-        this.passEvent(IntentType.Change, this.locateEntity(event.target), {
-          registers: [(event.target as HTMLInputElement).value || data.get("description"), (event.target as HTMLElement).nodeName, "", ""],
-        });
-      }*/
+      // change event only for input, select and textarea
+      // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/change_event
+      // See /ReadInput/
       this.passEvent(IntentType.Change, this.locateEntity(event.target), {
         registers: [(event.target as HTMLInputElement).value || "", "", "", ""],
       });
     } else if (event.type === "focusout") {
-      if (!!(event.target as HTMLElement).closest("form")) {
-        let data = new FormData((event.target as HTMLElement).closest("form"));
+        // focusout bubbles, so it is usually a safer alternative to blur
+        // https://developer.mozilla.org/en-US/docs/Web/API/Element/focusout_event
+        // See /ReadInput/
         this.passEvent(IntentType.Blur, this.locateEntity(event.target), {
-          registers: [
-            (event.target as HTMLInputElement).value || data.get("description"),
-            (event.target as HTMLElement).nodeName,
-            "",
-            "",
-          ],
+          registers: [(event.target as any)?.value || "", "", "", ""],
         });
+    } else if (isDragOver(event)) {
+      if (!acceptDrop(event, (e) => event.dataTransfer!.types.includes(DRAG_FORMAT))) {
+        return;
+      }
+      // we need to set those because of the prevent default, and mouse move is not fired during a drag
+      this.mouse = [event.clientX, event.clientY];
+
+      if (this.debounce) {
+        return;
       } else {
-        // remove this condition if needing to track 'blur' event
-        const val = (event.target as any)?.value;
-        this.passEvent(IntentType.Blur, this.locateEntity(event.target), {
-          registers: [val || "", "", "", ""],
+        this.debounce = true;
+        setTimeout(() => {
+          this.debounce = false;
+        }, DEBOUNCE_TIMEOUT);
+      }
+
+      const entity = (event.target as HTMLElement | SVGElement).closest("[id]");
+      // silence drops over empty zones (but should we not fold this into accepting the drop in the first place?)
+      if (!entity) return;
+
+      // NOTE: this may rerender the dropzone, thus breaking drop events
+      // a drop event is only fired if valid dragenter/dragover have been seen before
+      // and the DOM element for the dropzone is not rerendered in between
+      this.passEvent(IntentType.DragOver, entity);
+    } else if (isDragEnter(event)) {
+      acceptDrop(event, (e) => event.dataTransfer!.types.includes(DRAG_FORMAT));
+    } else if (isDrop(event)) {
+      if (!acceptDrop(event, (e) => event.dataTransfer!.types.includes(DRAG_FORMAT))) {
+        return;
+      }
+
+      const data = event.dataTransfer!.getData(DRAG_FORMAT);
+      if (!data) {
+        console.warn("Did not get data, ignore drop");
+        return;
+      }
+
+      const target = await ancestorOf(event.target); //TODO try to use coordinate system
+      if (target == null) {
+        return;
+      }
+      this.passEvent(IntentType.Drop, target, {
+        registers: [data, "", "", ""],
+      });
+    } else if (isDragEnd(event)) {
+        const elem = event.target as HTMLElement | null;
+      if (!elem) {
+        return;
+      }
+
+      this.passEvent(IntentType.DragEnd, ancestorOf(event.target));
+    } else if (isDragStart(event)) {
+      const elem = event.target as HTMLElement | null;
+      if (!elem) {
+        return;
+      }
+
+      const entity = elem.closest("[id]")!;
+
+      const [data,effect,image, _t] = await new Promise<FourArgs>((continuation) =>
+          this.passEvent(IntentType.DragStart, entity, { continuation }),
+      );
+
+      event.dataTransfer!.clearData(DRAG_FORMAT);
+      event.dataTransfer!.setData(DRAG_FORMAT, data);
+      event.dataTransfer!.dropEffect = effect;
+      event.dataTransfer!.setDragImage(image, 0, 0);
+    }  else if (isMouseMove(event)) {
+      this.mouse = [event.clientX, event.clientY];
+    } else if (isKeyUp(event)) {
+        const entity = this.shadowRoot
+        .elementFromPoint(this.mouse[0], this.mouse[1])
+        ?.closest("[id]");
+
+      if (isFormInput(event.target)) {
+        this.passEvent(IntentType.KeyUp, entity, {
+          registers: [event.target.value, "", "", ""],
         });
       }
-    } else if (isMouseMove(event)) {
-      this.mouse = [event.clientX, event.clientY];
     } else if (isKeyDown(event)) {
       const entity = this.shadowRoot
         .elementFromPoint(this.mouse[0], this.mouse[1])
@@ -256,17 +342,17 @@ class Renderer extends HTMLElement {
 
       switch (event.code) {
         case "Escape":
-          this.passEvent(EventsCodes.EscPress, entity);
+          this.passEvent(IntentType.EscPress, entity);
           break;
         case "ArrowDown":
           event.preventDefault();
-          this.passEvent(EventsCodes.Scroll, entity, {
+          this.passEvent(IntentType.Scroll, entity, {
             registers: ["1", "", "", ""],
           });
           break;
         case "ArrowUp":
           event.preventDefault();
-          this.passEvent(EventsCodes.Scroll, entity, {
+          this.passEvent(IntentType.Scroll, entity, {
             registers: ["-1", "", "", ""],
           });
           break;
@@ -277,15 +363,58 @@ class Renderer extends HTMLElement {
           }
           event.preventDefault();
           this.passEvent(
-            EventsCodes.ShowDebugMenu,
+            IntentType.ShowDebugMenu,
             this.shadowRoot.querySelector("[id]")!,
           );
         default:
           return;
       }
+    } else if (isWheel(event)) {
+      if (!this.mouseInCell) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation(); // prevent scroll capture by browser
+
+      if (this.debounce) {
+        return;
+      }
+
+      const direction = event.deltaY > 0 ? "10" : "-10";
+
+      if (this.debounce) {
+        return;
+      } else {
+        this.debounce = true;
+        setTimeout(() => {
+          this.debounce = false;
+        }, DEBOUNCE_TIMEOUT);
+      }
+
+      const entity = this.shadowRoot
+          .elementFromPoint(event.clientX, event.clientY)!
+          .closest("[id]");
+      if (!entity) {
+        // if scroll does not happen in a part of the UI that is recorded
+        return;
+      }
+      this.passEvent(IntentType.Scroll, entity, {
+        registers: [direction, "", "", ""],
+      });
     } else {
       console.log("Unknown event", event);
     }
+  }
+  /** mouseInCell is true if the pointer position is withing the boundary of the cell */
+  get mouseInCell(): boolean {
+    // global events, only accept if this is within the cell
+    const vp = this.getBoundingClientRect();
+    return (
+        this.mouse[0] > vp.left &&
+        this.mouse[0] < vp.right &&
+        this.mouse[1] > vp.top &&
+        this.mouse[1] < vp.bottom
+    );
   }
 
   async buildJSWorld(w: Partial<World>, e: Element): Promise<World> {
@@ -365,12 +494,9 @@ class Renderer extends HTMLElement {
       }
     };
 
-    // note that the call, while using the async syntax, can actually be synchronous if the LioLi computation is synchronous.
-    // this is the case if the [viewportToLioLi] is not using the visual debugger.
     // keeping this synchronous is required when we handle drag start event, where the payload and image must be found in the same loop.
-    //
     // [dnd] https://html.spec.whatwg.org/multipage/dnd.html#concept-dnd-rw
-    sched();
+    queueMicrotask(sched);
   };
 
   redraw = (parr: Uint8Array) => {
@@ -605,11 +731,32 @@ function ancestorOf(targetNode: EventTarget | null): HTMLElement | null {
     }
   }
 
+  /*if (isSubmitButton(targetNode)) {
+    if (!!targetNode.form) {
+      return targetNode.form
+    }
+    return targetNode
+  }*/
+
   const closest = targetNode?.closest("[id]");
   if (!closest) {
     return null;
   }
   return closest as HTMLElement;
+}
+
+/**
+ * acceptDrop prevents the drag event propagation, optionally only if pred is provided.
+ * This has the effect of allowing the drag event to happen.
+ * Return whether the event was accepted or not
+ */
+function acceptDrop(e: DragEvent, pred?: (e: DragEvent) => boolean) {
+  if (!pred || pred(e)) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return true;
+  }
+  return false;
 }
 
 // Typescript checks with inference
@@ -618,11 +765,23 @@ const isDoubleClick = (ev: Event) =>
   ev.type === "dblclick" || (isClick(ev) && (ev as MouseEvent).detail == 2);
 const isRightClick = (ev: Event) => ev.type === "contextmenu";
 const isMouseMove = (ev: Event): ev is MouseEvent => ev.type === "mousemove";
+const isWheel = (ev: Event): ev is WheelEvent => ev.type === "wheel";
+const isKeyUp = (ev: Event): ev is KeyboardEvent => ev.type === "keyup";
 const isKeyDown = (ev: Event): ev is KeyboardEvent => ev.type === "keydown";
+const isDragStart = (ev: Event): ev is DragEvent => ev.type === "dragstart";
+const isDragOver = (ev: Event): ev is DragEvent => ev.type === "dragover";
+const isDragEnter = (ev: Event): ev is DragEvent => ev.type === "dragenter";
+const isDrop = (ev: Event): ev is DragEvent => ev.type === "drop";
+const isDragEnd = (ev: Event): ev is DragEvent => ev.type === "dragend";
 const isSubmitButton = (
   target: EventTarget | null,
 ): target is HTMLInputElement =>
   target instanceof HTMLInputElement && target.type === "submit";
+
+  const isFormInput = (
+  target: EventTarget | null,
+): target is HTMLInputElement =>
+  target instanceof HTMLInputElement && (target.type === "text" || target.type === "password" || target.type === "date");
 
 function assertsMouseEvent(ev: Event): asserts ev is MouseEvent {
   if (!(ev instanceof MouseEvent)) {

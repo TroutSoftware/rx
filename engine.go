@@ -1,7 +1,6 @@
 package rx
 
 import (
-	"fmt"
 	"log/slog"
 	"math/rand"
 	"reflect"
@@ -148,7 +147,6 @@ func (ng *Engine) ReleaseXAS(buf XAS) { ng.free <- buf }
 
 // ReactToIntent
 func (ng *Engine) ReactToIntent(cf CallFrame) {
-	fmt.Println("DEBUG::: React to intent", cf.IntentType, cf.Entity)
 	do := func(ctx Context) Context {
 		if cf.Gen != ng.gen {
 			return ctx
