@@ -26,7 +26,9 @@ type Node struct {
 func (n *Node) SetText(text string) *Node { n.Text = text; return n }
 
 func (n *Node) AddChildren(cs ...*Node) *Node { n.Children = append(n.Children, cs...); return n }
-func (n *Node) GiveKey(ctx Context) *Node     { n.Entity = ctx.ng.cnt.Inc(); return n }
+
+// DEPRECATE: use [Keep] instead
+func (n *Node) GiveKey(ctx Context) *Node { n.Entity = ctx.ng.cnt.Inc(); return n }
 func (n *Node) AddAttr(kv ...string) *Node {
 	// TODO(rdo) static check for the right number of arguments
 	for i := 0; i < len(kv); i += 2 {
@@ -155,7 +157,7 @@ func (n *Node) PrintInline() string {
 
 }
 
-// CopyFrom creates a node that will be copied from its previous value in the DOM.
+// DEPRECATED: use [Reuse] instead
 func ReuseFrom(ctx Context, nt Entity) *Node {
 	n := GetNode("reuse")
 	n.old = nt
@@ -246,9 +248,9 @@ func serialize(n *Node, tree *etree, ctr *Counter, vm XAS) XAS {
 		return vm
 
 	case "reuse":
+		// Reuse ports the old tree to the new one
+		// ReID is then updating the ID, so that the handlers fire on the correct element
 		vm = vm.AddInstr(OpReuse, strconv.FormatUint(uint64(n.old), 10))
-		// walk all the child nodes to port the ID
-		// TODO(rdo) check what that means wtr handlers
 		tree.reuse(n.old, n.Entity, ctr, func(from, to Entity) {
 			vm = vm.AddInstr(OpReID,
 				strconv.FormatUint(uint64(from), 10),

@@ -19,10 +19,53 @@ type Context struct {
 	vx *vctx
 }
 
+type keyedEntity struct {
+	next *keyedEntity
+	key  reflect.Type
+	val  Entity
+}
+
 // NoAction is a marker context, which is going to prevent a render cycle from happening.
 // This is only useful as a performance optimisation for reacting to events, preventing an otherwise useless re-rendering.
 // The engine enforces this by randomly ignoring the optimisation.
 var NoAction Context
+
+// Keep stores an entity of type T in the context.
+// The entity will be available during the next cycle by calling the [Reuse] function.
+// This is only required for elements where identity matters (e.g. drag / drop / transition).
+//
+// Most of the elements should not use Keep.
+func Keep[T any](ctx Context, nd *Node) {
+	typ := reflect.TypeFor[T]()
+
+	p := &ctx.ng.k0
+	for (*p) != nil && (*p).key != typ {
+		p = &(*p).next
+	}
+	if nd.Entity == 0 {
+		nd.GiveKey(ctx)
+	}
+
+	*p = &keyedEntity{
+		key: typ,
+		val: nd.Entity,
+	}
+}
+
+// Reuse returns a node of type kept during the previous rendering cycle.
+// If no node is kept at T (or was kept more than one rendering cycle ago), nil is returned.
+func Reuse[T any](ctx Context) *Node {
+	typ := reflect.TypeFor[T]()
+
+	for p := ctx.ng.k1; p != nil; p = p.next {
+		if p.key == typ {
+			nd := ReuseFrom(ctx, p.val)
+			Keep[T](ctx, nd)
+			return nd
+		}
+	}
+	return nil
+}
 
 func DoNothing(ctx Context) Context { return NoAction }
 

@@ -28,6 +28,8 @@ type Engine struct {
 	gen int
 	g0  *vctx
 
+	k0, k1 *keyedEntity
+
 	Root   RootWidget
 	Screen Coord
 	CallFrame
@@ -129,6 +131,7 @@ func (ng *Engine) turncrank(act Action) XAS {
 	ng.et.ngen()
 	ng.gen++
 	ng.cnt = Counter(ng.gen & 1)
+	ng.k0, ng.k1 = nil, ng.k0
 	FreePool()
 
 	return ng.buf

@@ -32,6 +32,7 @@ type etree struct {
 // [etree.parents] should not be called after this
 func (t *etree) ngen() {
 	t.g1, t.g0 = t.g0, t.g1[:0]
+	clear(t.g0) // release handlers
 	for i, v := range t.g1 {
 		t.sparse[v.ntt] = i
 	}
