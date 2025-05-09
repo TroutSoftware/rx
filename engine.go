@@ -1,6 +1,7 @@
 package rx
 
 import (
+	"fmt"
 	"log/slog"
 	"math/rand"
 	"reflect"
@@ -147,6 +148,7 @@ func (ng *Engine) ReleaseXAS(buf XAS) { ng.free <- buf }
 
 // ReactToIntent
 func (ng *Engine) ReactToIntent(cf CallFrame) {
+	fmt.Println("DEBUG::: React to intent", cf.IntentType, cf.Entity)
 	do := func(ctx Context) Context {
 		if cf.Gen != ng.gen {
 			return ctx
@@ -173,8 +175,8 @@ func (ng *Engine) ReactToIntent(cf CallFrame) {
 
 type IntentType int
 
-//go:generate stringer -type IntentType
-//go:generate rxabi -type IntentType
+//go:generate go tool golang.org/x/tools/cmd/stringer -type IntentType
+//go:generate go tool rxabi -type IntentType
 
 const (
 	NoIntent IntentType = iota
@@ -188,6 +190,7 @@ const (
 	Scroll
 	Filter
 	Change
+	KeyUp
 	Blur
 	ChangeView
 	ManifestChange

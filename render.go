@@ -348,7 +348,7 @@ func BuildWidgets(ctx Context, ws []Widget) []*Node {
 	return ns[:j]
 }
 
-//go:generate rxabi -type OpType
+//go:generate go tool rxabi -type OpType
 
 // using an alias let's us run go generate but do not alter existing code
 type OpType = byte
