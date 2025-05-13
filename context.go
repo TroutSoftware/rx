@@ -158,3 +158,13 @@ func LoadContext(values ...any) Action {
 		return WithValues(ctx, values...)
 	}
 }
+
+// Chain execute all actions in order
+func Chain(actions ...Action) Action {
+	return func(ctx Context) Context {
+		for _, a := range actions {
+			ctx = a(ctx)
+		}
+		return ctx
+	}
+}
