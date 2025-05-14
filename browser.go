@@ -21,7 +21,9 @@ func WriteDataTransfer(data string, effect string, image *Node) Action {
 	return func(ctx Context) Context {
 		S1(ctx, data)
 		S2(ctx, effect)
-		S3(ctx, image.ElementID(ctx))
+		if image != nil {
+			S3(ctx, image.ElementID(ctx))
+		}
 		return ctx
 	}
 }
