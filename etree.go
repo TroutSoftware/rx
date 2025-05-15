@@ -1,6 +1,8 @@
 package rx
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // prenode is a node in a preorder sequential representation of a binary tree. See Knuth, 2.3.3.
 type prenode struct {
@@ -25,7 +27,6 @@ func (i *intentHandler) Some() bool {
 // it is used in the engine, where each turn of the crank results in a new gen
 type etree struct {
 	g0, g1 []prenode
-	sparse [10240]int
 }
 
 // ngen starts recording a new generation of entities
@@ -33,9 +34,6 @@ type etree struct {
 func (t *etree) ngen() {
 	t.g1, t.g0 = t.g0, t.g1[:0]
 	clear(t.g0) // release handlers
-	for i, v := range t.g1 {
-		t.sparse[v.ntt] = i
-	}
 }
 
 // add adds an entity to the current tree.
@@ -102,14 +100,12 @@ func (t *etree) parents(nt Entity) []prenode {
 }
 
 func (t *etree) locate(nt Entity) int {
-	assert(int(nt) < len(t.sparse), "need larger memory space!")
-
-	i := t.sparse[int(nt)]
-	if i >= len(t.g1) || t.g1[i].ntt != nt {
-		return -1
+	for i := range t.g1 {
+		if t.g1[i].ntt == nt {
+			return i
+		}
 	}
-
-	return i
+	return -1
 }
 
 // DumpETree is a debug utility printing all entities in a node subtree as a tree
