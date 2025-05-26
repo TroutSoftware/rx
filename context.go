@@ -83,27 +83,27 @@ type vctx struct {
 // The happens-after relationship could look a bit counter-intuitive; without further synchronization, two goroutines G1 and G2 would be able to write their value, but read the value from the other goroutine.
 // We believe this is an acceptable tradeoff as this is not a common case, and adding synchronization (e.g. through channels) is both trivial, and clearer anyway.
 // We do ensure that the data structure remains valid from concurrent access.
-func WithValue[T any](ctx Context, value T) Context {
+func WithValue[T any](ctx Context, value T) Context { return WithValues(ctx, value) }
+
+// WithValues set all values in context.
+// If a value is an action, it is executed in place (use a dedicated go routine to delay execution).
+func WithValues(ctx Context, values ...any) Context {
 	if ctx.vx == nil {
 		ctx.vx = &vctx{kv: make(map[reflect.Type]any)}
 	}
 
 	ctx.vx.ml.Lock()
-	ctx.vx.kv[reflect.TypeFor[T]()] = value
-	ctx.vx.ml.Unlock()
-	return ctx
-}
-func WithValues(ctx Context, v ...any) Context {
-	if ctx.vx == nil {
-		ctx.vx = &vctx{kv: make(map[reflect.Type]any)}
+	for _, v := range values {
+		if act, ok := v.(Action); ok {
+			ctx.vx.ml.Unlock()
+			ctx = act(ctx)
+			ctx.vx.ml.Lock()
+		} else {
+			ctx.vx.kv[reflect.TypeOf(v)] = v
+		}
 	}
-
-	ctx.vx.ml.Lock()
-	for _, v := range v {
-		ctx.vx.kv[reflect.TypeOf(v)] = v
-	}
-
 	ctx.vx.ml.Unlock()
+
 	return ctx
 }
 
