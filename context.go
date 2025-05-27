@@ -19,10 +19,53 @@ type Context struct {
 	vx *vctx
 }
 
+type keyedEntity struct {
+	next *keyedEntity
+	key  reflect.Type
+	val  Entity
+}
+
 // NoAction is a marker context, which is going to prevent a render cycle from happening.
 // This is only useful as a performance optimisation for reacting to events, preventing an otherwise useless re-rendering.
 // The engine enforces this by randomly ignoring the optimisation.
 var NoAction Context
+
+// Keep stores an entity of type T in the context.
+// The entity will be available during the next cycle by calling the [Reuse] function.
+// This is only required for elements where identity matters (e.g. drag / drop / transition).
+//
+// Most of the elements should not use Keep.
+func Keep[T any](ctx Context, nd *Node) {
+	typ := reflect.TypeFor[T]()
+
+	p := &ctx.ng.k0
+	for (*p) != nil && (*p).key != typ {
+		p = &(*p).next
+	}
+	if nd.Entity == 0 {
+		nd.GiveKey(ctx)
+	}
+
+	*p = &keyedEntity{
+		key: typ,
+		val: nd.Entity,
+	}
+}
+
+// Reuse returns a node of type kept during the previous rendering cycle.
+// If no node is kept at T (or was kept more than one rendering cycle ago), nil is returned.
+func Reuse[T any](ctx Context) *Node {
+	typ := reflect.TypeFor[T]()
+
+	for p := ctx.ng.k1; p != nil; p = p.next {
+		if p.key == typ {
+			nd := ReuseFrom(ctx, p.val)
+			Keep[T](ctx, nd)
+			return nd
+		}
+	}
+	return nil
+}
 
 func DoNothing(ctx Context) Context { return NoAction }
 
@@ -40,27 +83,27 @@ type vctx struct {
 // The happens-after relationship could look a bit counter-intuitive; without further synchronization, two goroutines G1 and G2 would be able to write their value, but read the value from the other goroutine.
 // We believe this is an acceptable tradeoff as this is not a common case, and adding synchronization (e.g. through channels) is both trivial, and clearer anyway.
 // We do ensure that the data structure remains valid from concurrent access.
-func WithValue[T any](ctx Context, value T) Context {
+func WithValue[T any](ctx Context, value T) Context { return WithValues(ctx, value) }
+
+// WithValues set all values in context.
+// If a value is an action, it is executed in place (use a dedicated go routine to delay execution).
+func WithValues(ctx Context, values ...any) Context {
 	if ctx.vx == nil {
 		ctx.vx = &vctx{kv: make(map[reflect.Type]any)}
 	}
 
 	ctx.vx.ml.Lock()
-	ctx.vx.kv[reflect.TypeFor[T]()] = value
-	ctx.vx.ml.Unlock()
-	return ctx
-}
-func WithValues(ctx Context, v ...any) Context {
-	if ctx.vx == nil {
-		ctx.vx = &vctx{kv: make(map[reflect.Type]any)}
+	for _, v := range values {
+		if act, ok := v.(Action); ok {
+			ctx.vx.ml.Unlock()
+			ctx = act(ctx)
+			ctx.vx.ml.Lock()
+		} else {
+			ctx.vx.kv[reflect.TypeOf(v)] = v
+		}
 	}
-
-	ctx.vx.ml.Lock()
-	for _, v := range v {
-		ctx.vx.kv[reflect.TypeOf(v)] = v
-	}
-
 	ctx.vx.ml.Unlock()
+
 	return ctx
 }
 
@@ -116,15 +159,12 @@ func LoadContext(values ...any) Action {
 	}
 }
 
-// Toggle sets the value in context to w if it is missing, or zero otherwise
-func Toggle[T comparable](w T) Action {
+// Chain execute all actions in order
+func Chain(actions ...Action) Action {
 	return func(ctx Context) Context {
-		v := ValueOf[T](ctx)
-		if v == w {
-			var z T
-			return WithValue(ctx, z)
-		} else {
-			return WithValue(ctx, w)
+		for _, a := range actions {
+			ctx = a(ctx)
 		}
+		return ctx
 	}
 }

@@ -26,7 +26,9 @@ type Node struct {
 func (n *Node) SetText(text string) *Node { n.Text = text; return n }
 
 func (n *Node) AddChildren(cs ...*Node) *Node { n.Children = append(n.Children, cs...); return n }
-func (n *Node) GiveKey(ctx Context) *Node     { n.Entity = ctx.ng.cnt.Inc(); return n }
+
+// DEPRECATE: use [Keep] instead
+func (n *Node) GiveKey(ctx Context) *Node { n.Entity = ctx.ng.cnt.Inc(); return n }
 func (n *Node) AddAttr(kv ...string) *Node {
 	// TODO(rdo) static check for the right number of arguments
 	for i := 0; i < len(kv); i += 2 {
@@ -43,6 +45,9 @@ func (n *Node) AddAttr(kv ...string) *Node {
 	}
 	return n
 }
+
+// GetAttr returns the value set for the attribute.
+// An empty string is returned if no value is set.
 func (n *Node) GetAttr(attr string) string {
 	for _, a := range n.Attrs {
 		if a.Name == attr {
@@ -51,7 +56,17 @@ func (n *Node) GetAttr(attr string) string {
 	}
 	return ""
 }
+
+// OnIntent attaches the action to the intent.
+//
+// When the intent is fired on the node (browser-side),
+// the action is executed on the current context, leading to a new context.
+// The new view is then rendered based on the new context.
 func (n *Node) OnIntent(evt IntentType, h Action) *Node {
+	if h == nil {
+		return n
+	}
+
 	n.hdl[evt] = h
 	return n
 }
@@ -61,6 +76,9 @@ func (n *Node) React(evt IntentType, mutators ...any) *Node {
 	return n.OnIntent(evt, Mutate(mutators...))
 }
 
+// Focus calls the [focus] method on the final element
+//
+// [focus]: https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus
 func (n *Node) Focus(ctx Context) *Node { n.Focused = true; return n.GiveKey(ctx) }
 
 // Set ARIA role, using the "role" property
@@ -139,7 +157,7 @@ func (n *Node) PrintInline() string {
 
 }
 
-// CopyFrom creates a node that will be copied from its previous value in the DOM.
+// DEPRECATED: use [Reuse] instead
 func ReuseFrom(ctx Context, nt Entity) *Node {
 	n := GetNode("reuse")
 	n.old = nt
@@ -230,9 +248,9 @@ func serialize(n *Node, tree *etree, ctr *Counter, vm XAS) XAS {
 		return vm
 
 	case "reuse":
+		// Reuse ports the old tree to the new one
+		// ReID is then updating the ID, so that the handlers fire on the correct element
 		vm = vm.AddInstr(OpReuse, strconv.FormatUint(uint64(n.old), 10))
-		// walk all the child nodes to port the ID
-		// TODO(rdo) check what that means wtr handlers
 		tree.reuse(n.old, n.Entity, ctr, func(from, to Entity) {
 			vm = vm.AddInstr(OpReID,
 				strconv.FormatUint(uint64(from), 10),
@@ -332,7 +350,7 @@ func BuildWidgets(ctx Context, ws []Widget) []*Node {
 	return ns[:j]
 }
 
-//go:generate rxabi -type OpType
+//go:generate go tool rxabi -type OpType
 
 // using an alias let's us run go generate but do not alter existing code
 type OpType = byte

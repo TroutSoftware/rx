@@ -1,0 +1,7 @@
+site_name: RX Framework
+nav:
+  - Home: index.md
+  - Organizing Code: trees.md
+  - Under the Hood: engine.md
+
+theme: readthedocs

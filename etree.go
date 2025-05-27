@@ -1,6 +1,8 @@
 package rx
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // prenode is a node in a preorder sequential representation of a binary tree. See Knuth, 2.3.3.
 type prenode struct {
@@ -25,22 +27,19 @@ func (i *intentHandler) Some() bool {
 // it is used in the engine, where each turn of the crank results in a new gen
 type etree struct {
 	g0, g1 []prenode
-	sparse [1024]int
 }
 
 // ngen starts recording a new generation of entities
 // [etree.parents] should not be called after this
 func (t *etree) ngen() {
 	t.g1, t.g0 = t.g0, t.g1[:0]
-	for i, v := range t.g1 {
-		t.sparse[v.ntt] = i
-	}
+	clear(t.g0) // release handlers
 }
 
 // add adds an entity to the current tree.
 // by default, the entity is open on the left: you must call [etree.closeLeft] if the entity does not have children
 func (t *etree) add(nt Entity) int {
-	assert(nt < 1024, "cannot store more than 1024 entities in event handler")
+	assert(nt < 10240, "cannot store more than 10240 entities in event handler")
 
 	t.g0 = append(t.g0, prenode{ntt: nt})
 	return len(t.g0) - 1
@@ -101,14 +100,12 @@ func (t *etree) parents(nt Entity) []prenode {
 }
 
 func (t *etree) locate(nt Entity) int {
-	assert(int(nt) < len(t.sparse), "need larger memory space!")
-
-	i := t.sparse[int(nt)]
-	if i >= len(t.g1) || t.g1[i].ntt != nt {
-		return -1
+	for i := range t.g1 {
+		if t.g1[i].ntt == nt {
+			return i
+		}
 	}
-
-	return i
+	return -1
 }
 
 // DumpETree is a debug utility printing all entities in a node subtree as a tree

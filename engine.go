@@ -28,6 +28,8 @@ type Engine struct {
 	gen int
 	g0  *vctx
 
+	k0, k1 *keyedEntity
+
 	Root   RootWidget
 	Screen Coord
 	CallFrame
@@ -129,6 +131,7 @@ func (ng *Engine) turncrank(act Action) XAS {
 	ng.et.ngen()
 	ng.gen++
 	ng.cnt = Counter(ng.gen & 1)
+	ng.k0, ng.k1 = nil, ng.k0
 	FreePool()
 
 	return ng.buf
@@ -173,8 +176,8 @@ func (ng *Engine) ReactToIntent(cf CallFrame) {
 
 type IntentType int
 
-//go:generate stringer -type IntentType
-//go:generate rxabi -type IntentType
+//go:generate go tool stringer -type IntentType
+//go:generate go tool rxabi -type IntentType
 
 const (
 	NoIntent IntentType = iota
@@ -188,6 +191,7 @@ const (
 	Scroll
 	Filter
 	Change
+	KeyUp
 	Blur
 	ChangeView
 	ManifestChange
