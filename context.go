@@ -169,7 +169,7 @@ func Chain(actions ...Action) Action {
 	}
 }
 
-// toggle sets the value in context to W if it is missing, or zero otherwise
+// Toggle sets the value in context to W if it is missing, or zero otherwise
 func Toggle[T comparable](w T) Action {
 	return func(ctx Context) Context {
 		v := ValueOf[T](ctx)
