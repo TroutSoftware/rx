@@ -115,3 +115,16 @@ func LoadContext(values ...any) Action {
 		return WithValues(ctx, values...)
 	}
 }
+
+// Toggle sets the value in context to w if it is missing, or zero otherwise
+func Toggle[T comparable](w T) Action {
+	return func(ctx Context) Context {
+		v := ValueOf[T](ctx)
+		if v == w {
+			var z T
+			return WithValue(ctx, z)
+		} else {
+			return WithValue(ctx, w)
+		}
+	}
+}
