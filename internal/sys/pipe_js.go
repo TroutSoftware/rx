@@ -2,20 +2,22 @@
 package sys
 
 import (
+	"fmt"
 	"io"
 	"runtime"
 	"syscall/js"
 )
 
 func Pipe() (js.Value, io.WriteCloser) {
-	p := &pipe{
-		buf: make(chan streampull, 1),
-	}
+	buf := make(chan streampull, 1)
 	readInto := js.FuncOf(func(this js.Value, args []js.Value) any {
-		p.buf <- streampull{args[0], args[1]}
+		buf <- streampull{args[0], args[1]}
 		return js.Null()
 	})
-	runtime.SetFinalizer(p, func(_ *pipe) { readInto.Release() })
+	// second alloc, make sure readInto does not hold a ref to p
+	// which would prevent the cleanup to happen
+	p := &pipe{buf}
+	runtime.AddCleanup(p, func(_ int) { readInto.Release() }, 0)
 
 	r := js.Global().Call("trout_sftw_openPipe", readInto)
 	return r, p

@@ -231,7 +231,7 @@ class Renderer extends HTMLElement {
 
       // See /RedirectTo/
       if (act === "redirect") {
-        window.open(name, "_blank");
+        window.open(name, "_self");
       }
 
       // See /CopyToClipboard/
