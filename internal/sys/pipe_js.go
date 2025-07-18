@@ -2,7 +2,6 @@
 package sys
 
 import (
-	"fmt"
 	"io"
 	"runtime"
 	"syscall/js"
