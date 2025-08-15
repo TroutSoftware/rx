@@ -179,13 +179,13 @@ func (t etree) PrintDot(w io.Writer) {
 		node [shape=record, fontcolor=black, fontsize=14, width=4.75, fixedsize=true];
 	`)
 	var lb []string
-	for i, v := range t.sparse {
+	for i, v := range t.g1 {
 		if t.locate(Entity(i)) == -1 {
 			continue
 		}
 
-		lb = append(lb, fmt.Sprintf("<s%d> %d", i, v))
-		fmt.Fprintf(w, "sparse:s%d -> dense:d%d\n", i, t.sparse[i])
+		lb = append(lb, fmt.Sprintf("<s%d> %v", i, v))
+		fmt.Fprintf(w, "sparse:s%d -> dense:d%v\n", i, t.g1[i])
 	}
 	fmt.Fprintf(w, `sparse [label = "%s"];`+"\n", strings.Join(lb, " | "))
 
