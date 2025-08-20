@@ -46,6 +46,16 @@ func (n *Node) AddAttr(kv ...string) *Node {
 	return n
 }
 
+// ForwardEvents links the current node's events to another node by adding a data attribute.
+// This allows events triggered on this node to be handled by the target node's event handlers.
+func (n *Node) ForwardEvents(ctx Context, to *Node) {
+	if n.Entity == 0 {
+		n.GiveKey(ctx)
+	}
+
+	n.AddAttr("data-linked-entity", to.ElementID(ctx))
+}
+
 // GetAttr returns the value set for the attribute.
 // An empty string is returned if no value is set.
 func (n *Node) GetAttr(attr string) string {
