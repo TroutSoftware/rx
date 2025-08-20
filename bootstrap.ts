@@ -148,7 +148,7 @@ class Renderer extends HTMLElement {
     // document-tied events, must be removed in disconnectedCallback
     document.addEventListener("mousemove", this);
     document.addEventListener("wheel", this, { passive: false });
-    
+
     const env: { [key: string]: string } = {};
     for (const key in this.dataset) {
       env[key] = this.dataset[key]!;
@@ -194,9 +194,18 @@ class Renderer extends HTMLElement {
       // capture the mouse, in case the events gets delayed too much
       const mouse: [x: number, y: number] = [event.clientX, event.clientY];
 
-      const target = this.locateEntity(event.target)
+      let target = this.locateEntity(event.target)
       if (target == null) {
         return;
+      }
+      //TODO: resolve all events instead of just click
+      const linked = target.dataset.linkedEntity;
+      if (linked) {
+          const newTarget = this.shadowRoot.getElementById(linked);
+          if (newTarget) {
+              newTarget.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+              return; //ignoring the handling in the origin element
+          }
       }
 
       // order matters: since the event detail can be used to differentiate,
@@ -289,7 +298,7 @@ class Renderer extends HTMLElement {
         return;
       }
 
-      const target = await ancestorOf(event.target); //TODO try to use coordinate system
+      const target = ancestorOf(event.target); //TODO try to use coordinate system
       if (target == null) {
         return;
       }
