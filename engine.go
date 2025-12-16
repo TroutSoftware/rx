@@ -114,14 +114,11 @@ func (ng *Engine) turncrank(act Action) XAS {
 	}()
 
 	ctx := act(Context{ng: ng, vx: ng.g0})
-<<<<<<< Updated upstream
-=======
 
 	if ctx == noAction {
 		return nil
 	}
 
->>>>>>> Stashed changes
 	nd := ng.Root.Build(ctx)
 	ng.buf = serialize(nd, &ng.et, &ng.cnt, ng.buf[:0]).AddInstr(OpTerm)
 
