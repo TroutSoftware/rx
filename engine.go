@@ -2,12 +2,8 @@ package rx
 
 import (
 	"log/slog"
-	"math/rand"
 	"reflect"
 )
-
-// should be enabled by default, but currently need fix in drag&drop (since this would destroy the persistent entities)
-var noActionRandEnabled = false
 
 type Engine struct {
 	Actions chan Action
@@ -116,7 +112,6 @@ func (ng *Engine) turncrank(act Action) XAS {
 	}()
 
 	ctx := act(Context{ng: ng, vx: ng.g0})
-
 	nd := ng.Root.Build(ctx)
 	ng.buf = serialize(nd, &ng.et, &ng.cnt, ng.buf[:0]).AddInstr(OpTerm)
 
@@ -128,14 +123,6 @@ func (ng *Engine) turncrank(act Action) XAS {
 	FreePool()
 
 	return ng.buf
-}
-
-func randPick() bool {
-	if !noActionRandEnabled {
-		return false
-	}
-
-	return rand.Uint32()&0xF == 0 // once in every 16 loop
 }
 
 // ReleaseXAS is used by the main routine to prevent too much allocations
