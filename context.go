@@ -25,11 +25,6 @@ type keyedEntity struct {
 	val  Entity
 }
 
-// NoAction is a marker context, which is going to prevent a render cycle from happening.
-// This is only useful as a performance optimisation for reacting to events, preventing an otherwise useless re-rendering.
-// The engine enforces this by randomly ignoring the optimisation.
-var NoAction Context
-
 // Keep stores an entity of type T in the context.
 // The entity will be available during the next cycle by calling the [Reuse] function.
 // This is only required for elements where identity matters (e.g. drag / drop / transition).
@@ -67,7 +62,9 @@ func Reuse[T any](ctx Context) *Node {
 	return nil
 }
 
-func DoNothing(ctx Context) Context { return NoAction }
+func DoNothing(ctx Context) Context {
+	return ctx
+}
 
 // vctx is a lock-protected map.
 type vctx struct {

@@ -116,13 +116,6 @@ func (ng *Engine) turncrank(act Action) XAS {
 	}()
 
 	ctx := act(Context{ng: ng, vx: ng.g0})
-	if ctx == NoAction {
-		if !randPick() {
-			return nil
-		}
-		ng.logger.Debug("executing despite NoAction")
-		ctx = Context{ng: ng, vx: ng.g0}
-	}
 
 	nd := ng.Root.Build(ctx)
 	ng.buf = serialize(nd, &ng.et, &ng.cnt, ng.buf[:0]).AddInstr(OpTerm)
@@ -165,7 +158,7 @@ func (ng *Engine) ReactToIntent(cf CallFrame) {
 		}
 
 		if h[cf.IntentType] == nil {
-			return NoAction
+			return ctx
 		}
 		return h[cf.IntentType](ctx)
 
