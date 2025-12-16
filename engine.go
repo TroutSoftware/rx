@@ -100,6 +100,8 @@ type WidgetFunc func(Context) *Node
 
 func (f WidgetFunc) Build(ctx Context) *Node { return f(ctx) }
 
+var noAction Context
+
 // turncrank executes all the systems in turn, and returns a virtual machine for the Javascript code to execute.
 // The render loop is not supposed to be executed solely based on a timing (e.g. every 60ms), but instead react to intents.
 func (ng *Engine) turncrank(act Action) XAS {
@@ -112,6 +114,14 @@ func (ng *Engine) turncrank(act Action) XAS {
 	}()
 
 	ctx := act(Context{ng: ng, vx: ng.g0})
+<<<<<<< Updated upstream
+=======
+
+	if ctx == noAction {
+		return nil
+	}
+
+>>>>>>> Stashed changes
 	nd := ng.Root.Build(ctx)
 	ng.buf = serialize(nd, &ng.et, &ng.cnt, ng.buf[:0]).AddInstr(OpTerm)
 
@@ -145,7 +155,7 @@ func (ng *Engine) ReactToIntent(cf CallFrame) {
 		}
 
 		if h[cf.IntentType] == nil {
-			return ctx
+			return noAction
 		}
 		return h[cf.IntentType](ctx)
 
