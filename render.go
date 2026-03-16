@@ -325,6 +325,15 @@ func serializeHTML(n *Node, buf *strings.Builder) {
 	}
 	n.visited = true
 
+	// skip nothing node
+	if n.IsNothing() {
+		for _, c := range n.Children {
+			assert(c != nil, "nil child in node: %v", n)
+			serializeHTML(c, buf)
+		}
+		return
+	}
+
 	fmt.Fprintf(buf, "<%s ", n.TagName)
 	if len(n.Classes) > 0 {
 		fmt.Fprintf(buf, "class=\"%s\" ", n.Classes)

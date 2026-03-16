@@ -2,9 +2,6 @@ package rx
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -43,13 +40,9 @@ func TestWalkETree(t *testing.T) {
 		)},
 	}
 
-	for i, c := range cases {
+	for _, c := range cases {
 		var et etree
 		loadtree(readNodes(c.tree), &et)
-
-		if testing.Verbose() {
-			spitDot(t, et, fmt.Sprintf("etree_%d.png", i))
-		}
 
 		for n, cs := range c.want.subtree {
 			cs = append(cs, n) // entity is part of sub-tree
@@ -172,58 +165,4 @@ func readNodes(short string) *Node {
 	}
 
 	return stack[:1][0]
-}
-
-func (t etree) PrintDot(w io.Writer) {
-	fmt.Fprintf(w, `	digraph {
-		node [shape=record, fontcolor=black, fontsize=14, width=4.75, fixedsize=true];
-	`)
-	var lb []string
-	for i, v := range t.g1 {
-		if t.locate(Entity(i)) == -1 {
-			continue
-		}
-
-		lb = append(lb, fmt.Sprintf("<s%d> %v", i, v))
-		fmt.Fprintf(w, "sparse:s%d -> dense:d%v\n", i, t.g1[i])
-	}
-	fmt.Fprintf(w, `sparse [label = "%s"];`+"\n", strings.Join(lb, " | "))
-
-	fmt.Fprint(w, "edge [color=red]")
-	lb = make([]string, len(t.g0))
-	for i, v := range t.g0 {
-		lb[i] = fmt.Sprintf("<d%d> %d", i, v.ntt)
-		if int(v.scp) != i {
-			fmt.Fprintf(w, "dense:d%d:s -> dense:d%d:se\n", i, v.scp)
-		}
-	}
-	fmt.Fprintf(w, `dense [label = "%s"];`+"\n", strings.Join(lb, " | "))
-
-	fmt.Fprint(w, "}")
-}
-
-type Dottable interface {
-	PrintDot(dst io.Writer)
-}
-
-func spitDot(t *testing.T, d Dottable, dst string) {
-	if !testing.Verbose() {
-		return
-	}
-
-	t.Helper()
-
-	out, err := os.CreateTemp("", "pretty_*.dot")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("using dot file", out.Name())
-
-	d.PrintDot(out)
-	out.Close()
-
-	msg, err := exec.Command("dot", "-Tpng", "-o"+dst, out.Name()).CombinedOutput()
-	if err != nil {
-		t.Fatalf("error running dot (%s): %s", err, msg)
-	}
 }

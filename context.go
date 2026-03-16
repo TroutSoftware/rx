@@ -62,9 +62,12 @@ func Reuse[T any](ctx Context) *Node {
 	return nil
 }
 
-func DoNothing(ctx Context) Context {
-	return ctx
-}
+// [NoAction] is a marker context.
+// The rendering engine is free to skip a rendering frame if [NoAction] is returned in reaction to an event.
+var NoAction Context
+
+// DoNothing returns the [NoAction] marker context
+func DoNothing(ctx Context) Context { return NoAction }
 
 // vctx is a lock-protected map.
 type vctx struct {
