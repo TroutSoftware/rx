@@ -2,6 +2,8 @@
 
 package rx
 
+import "io"
+
 func RedirectTo(url string) Action                                     { return DoNothing }
 func ReadInput(ctx Context) string                                     { return "" }
 func WriteDataTransfer(data string, effect string, image *Node) Action { return DoNothing }
