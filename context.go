@@ -1,7 +1,9 @@
 package rx
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -17,6 +19,19 @@ import (
 type Context struct {
 	ng *Engine
 	vx *vctx
+}
+
+// Dump provides a simple representation of context keys
+func (c Context) Dump() string {
+	var buf strings.Builder
+	fmt.Fprint(&buf, "[")
+	c.vx.ml.Lock()
+	for typ, val := range c.vx.kv {
+		fmt.Fprintf(&buf, "\n\t%s=%v", typ, val)
+	}
+	c.vx.ml.Unlock()
+	fmt.Fprint(&buf, "\n]")
+	return buf.String()
 }
 
 type keyedEntity struct {
