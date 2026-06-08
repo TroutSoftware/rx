@@ -3,6 +3,7 @@ package rx
 import (
 	"encoding/binary"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,33 +28,21 @@ func (n *Node) SetText(text string) *Node { n.Text = text; return n }
 
 func (n *Node) AddChildren(cs ...*Node) *Node { n.Children = append(n.Children, cs...); return n }
 
-// DEPRECATE: use [Keep] instead
+// Deprecated: use [Keep] instead
 func (n *Node) GiveKey(ctx Context) *Node { n.Entity = ctx.ng.cnt.Inc(); return n }
+
+// AddAttr adds or replace the arguments in the node.
+// Arguments must be given by alternating keys and values.
 func (n *Node) AddAttr(kv ...string) *Node {
-	// TODO(rdo) static check for the right number of arguments
 	for i := 0; i < len(kv); i += 2 {
-		seen := false
-		for j := range n.Attrs {
-			if n.Attrs[j].Name == kv[i] {
-				n.Attrs[j].Value = kv[i+1]
-				seen = true
-			}
-		}
-		if !seen {
+		idx := slices.IndexFunc(n.Attrs, func(a Attr) bool { return a.Name == kv[i] })
+		if idx == -1 {
 			n.Attrs = append(n.Attrs, Attr{Name: kv[i], Value: kv[i+1]})
+		} else {
+			n.Attrs[idx].Value = kv[i+1]
 		}
 	}
 	return n
-}
-
-// ForwardEvents links the current node's events to another node by adding a data attribute.
-// This allows events triggered on this node to be handled by the target node's event handlers.
-func (n *Node) ForwardEvents(ctx Context, to *Node) {
-	if n.Entity == 0 {
-		n.GiveKey(ctx)
-	}
-
-	n.AddAttr("data-linked-entity", to.ElementID(ctx))
 }
 
 // GetAttr returns the value set for the attribute.
@@ -139,39 +128,16 @@ func (n *Node) ElementID(ctx Context) string {
 	return strconv.FormatUint(uint64(n.Entity), 10)
 }
 
-func printEntityTreeRec(n *Node, strb *strings.Builder, level int) {
-	if n == nil {
-		return
-	}
-	tabs := strings.Repeat("\t", level) + "| "
-	if n.Entity != 0 {
-		ntag := fmt.Sprintf(tabs+n.PrintInline()+"\n", n.TagName, n.Entity, n.Classes, n.Attrs)
-		strb.WriteString(ntag)
-	} else {
-		strb.WriteString(tabs + "non-entity-node\n")
-	}
-	for _, c := range n.Children {
-		printEntityTreeRec(c, strb, level+1)
-	}
-}
+// ActionFor returns the action registered in n for event of type t.
+// This is mostly useful for tests.
+func ActionFor(n *Node, t IntentType) Action { return n.hdl[t] }
 
-// PrintEntityTree for debugging
-// Running on the root node should show all entities
-func (n *Node) PrintEntityTree() string {
-	var strb strings.Builder
-	printEntityTreeRec(n, &strb, 0)
-	return strb.String()
-}
-func (n *Node) PrintInline() string {
-	return fmt.Sprintf("%s entity='%d' class='%s' attrs='%v'", n.TagName, n.Entity, n.Classes, n.Attrs)
-
-}
-
-// DEPRECATED: use [Reuse] instead
-func ReuseFrom(ctx Context, nt Entity) *Node {
-	n := GetNode("reuse")
-	n.old = nt
-	return n.GiveKey(ctx)
+// Visit is an internal function used to ensure there are no cycle during rendering.
+func (n *Node) Visit() {
+	if n.visited {
+		panic("cycle detected")
+	}
+	n.visited = true
 }
 
 // Nothing returns a node that does not appear in the DOM.
@@ -186,30 +152,30 @@ func ReuseFrom(ctx Context, nt Entity) *Node {
 //
 //  1. Terminal nodes will simply not exist
 //  2. Children of Nothing nodes will become children of the parent of the Nothing node.
-func Nothing(ws ...*Node) *Node { return GetNode("nothing").AddChildren(ws...) }
+func Nothing(ws ...*Node) *Node { return getNode("nothing").AddChildren(ws...) }
 
 type Attr struct{ Name, Value string }
 
-type flist struct {
-	next  *flist
+type poolNode struct {
+	next  *poolNode
 	nodes []Node
 }
 
 var npool = struct {
-	flist
-	free *flist
+	poolNode
+	free *poolNode
 	nmtx sync.Mutex
-}{flist: flist{nodes: make([]Node, 0, 512)}}
+}{poolNode: poolNode{nodes: make([]Node, 0, 512)}}
 
-// GetNode returns a node from the pool, minimizing allocations.
+// getNode returns a node from the pool, minimizing allocations.
 // The pool is re-initialized as a whole during each cycle.
-func GetNode(tagname string) *Node {
+func getNode(tagname string) *Node {
 	npool.nmtx.Lock()
 	defer npool.nmtx.Unlock()
 
 	// invariant: pool next is nil iff len(nodes) < cap(nodes)
 
-	pool := &npool.flist
+	pool := &npool.poolNode
 	for pool.next != nil {
 		pool = pool.next
 	}
@@ -217,10 +183,10 @@ func GetNode(tagname string) *Node {
 	pool.nodes = pool.nodes[:len(pool.nodes)+1]
 	if len(pool.nodes) == cap(pool.nodes) {
 		if npool.free != nil {
-			pool.next = &flist{nodes: npool.free.nodes[:0]}
+			pool.next = &poolNode{nodes: npool.free.nodes[:0]}
 			npool.free = npool.free.next
 		} else {
-			pool.next = &flist{nodes: make([]Node, 0, 512)}
+			pool.next = &poolNode{nodes: make([]Node, 0, 512)}
 		}
 	}
 
@@ -230,12 +196,13 @@ func GetNode(tagname string) *Node {
 	return last
 }
 
-// FreePool de-allocate all nodes at once.
-func FreePool() {
+// freePool de-allocate all nodes at once.
+func freePool() {
 	npool.nmtx.Lock()
 	defer npool.nmtx.Unlock()
 
 	npool.free, npool.next = npool.next, nil
+	clear(npool.nodes)
 	npool.nodes = npool.nodes[:0]
 }
 
@@ -320,11 +287,6 @@ func (n *Node) ToHTML() string {
 }
 
 func serializeHTML(n *Node, buf *strings.Builder) {
-	if n.visited {
-		panic("cycle detected")
-	}
-	n.visited = true
-
 	// skip nothing node
 	if n.IsNothing() {
 		for _, c := range n.Children {
@@ -354,24 +316,9 @@ func serializeHTML(n *Node, buf *strings.Builder) {
 	fmt.Fprintf(buf, "</%s>", n.TagName)
 }
 
-// BuildWidgets creates a slice of nodes by rendering each widget.
-// It takes care of ignoring nil values.
-func BuildWidgets(ctx Context, ws []Widget) []*Node {
-	ns := make([]*Node, len(ws))
-	j := 0
-	for _, w := range ws {
-		if w == nil {
-			continue
-		}
-		ns[j] = w.Build(ctx)
-		j++
-	}
-	return ns[:j]
-}
-
-//go:generate go tool rxabi -type OpType
-
 // using an alias let's us run go generate but do not alter existing code
+//
+//go:generate go tool rxabi -type OpType
 type OpType = byte
 
 const (

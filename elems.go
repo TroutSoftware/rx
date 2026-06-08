@@ -11,7 +11,7 @@ var cachedParseResults = make(map[string]qVM)
 var cachedParseResultsMx sync.Mutex
 
 // Get parses the Get text in tpl, and returns a node matching it.
-// This is a short hand for the [GetNode], [Node.AddAttr], … constructors, optimized for easy definition.
+// This is a short hand for the [getNode], [Node.AddAttr], … constructors, optimized for easy definition.
 // The node returned can be further modified.
 //
 // When used in the short form (defining a single element), the element need not be closed:
@@ -108,7 +108,7 @@ func (vm qVM) run(tpl string) *Node {
 				continue
 			}
 
-			c := GetNode(tpl[op.R1:op.R2])
+			c := getNode(tpl[op.R1:op.R2])
 			p.AddChildren(c)
 			p, stack = c, append(stack, p)
 		case qAttrs:

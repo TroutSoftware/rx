@@ -69,20 +69,18 @@ func Reuse[T any](ctx Context) *Node {
 
 	for p := ctx.ng.k1; p != nil; p = p.next {
 		if p.key == typ {
-			nd := ReuseFrom(ctx, p.val)
-			Keep[T](ctx, nd)
-			return nd
+			n := getNode("reuse")
+			n.old = p.val
+			n.GiveKey(ctx)
+			Keep[T](ctx, n)
+			return n
 		}
 	}
 	return nil
 }
 
-// [NoAction] is a marker context.
-// The rendering engine is free to skip a rendering frame if [NoAction] is returned in reaction to an event.
-var NoAction Context
-
-// DoNothing returns the [NoAction] marker context
-func DoNothing(ctx Context) Context { return NoAction }
+// DoNothing returns the original context – the data is not updated
+func DoNothing(ctx Context) Context { return ctx }
 
 // vctx is a lock-protected map.
 type vctx struct {

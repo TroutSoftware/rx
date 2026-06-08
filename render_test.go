@@ -6,11 +6,11 @@ import (
 
 func TestRender(t *testing.T) {
 	t.Run("create 2 different nodes", func(t *testing.T) {
-		n1 := GetNode("span")
+		n1 := getNode("span")
 		if n1 == nil {
 			t.Fatalf("n1 node is nil")
 		}
-		n2 := GetNode("span")
+		n2 := getNode("span")
 		if n2 == nil {
 			t.Fatalf("n2 node is nil")
 		}

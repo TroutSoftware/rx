@@ -22,7 +22,7 @@ type Engine struct {
 	// these remember the previous state
 	et  etree
 	gen int
-	g0  *vctx
+	ctx *vctx
 
 	k0, k1 *keyedEntity
 
@@ -47,9 +47,9 @@ func New(root Widget, ctx ...Action) *Engine {
 		Root:       root,
 		genHandler: newLogHandler(),
 	}
-	ng.g0 = &vctx{kv: make(map[reflect.Type]any)}
+	ng.ctx = &vctx{kv: make(map[reflect.Type]any)}
 	for _, f := range ctx {
-		ng.g0 = f(Context{vx: ng.g0}).vx
+		ng.ctx = f(Context{vx: ng.ctx}).vx
 	}
 	ng.logger = slog.New(ng.genHandler)
 
@@ -113,7 +113,7 @@ func (ng *Engine) turncrank(act Action) XAS {
 		ng.genHandler.Discard()
 	}()
 
-	ctx := act(Context{ng: ng, vx: ng.g0})
+	ctx := act(Context{ng: ng, vx: ng.ctx})
 
 	if ctx == noAction {
 		return nil
@@ -122,12 +122,12 @@ func (ng *Engine) turncrank(act Action) XAS {
 	nd := ng.Root.Build(ctx)
 	ng.buf = serialize(nd, &ng.et, &ng.cnt, ng.buf[:0]).AddInstr(OpTerm)
 
-	ng.g0 = ctx.vx
+	ng.ctx = ctx.vx
 	ng.et.ngen()
 	ng.gen++
 	ng.cnt = Counter(ng.gen & 1)
 	ng.k0, ng.k1 = nil, ng.k0
-	FreePool()
+	freePool()
 
 	return ng.buf
 }
@@ -135,7 +135,7 @@ func (ng *Engine) turncrank(act Action) XAS {
 // ReleaseXAS is used by the main routine to prevent too much allocations
 func (ng *Engine) ReleaseXAS(buf XAS) { ng.free <- buf }
 
-// ReactToIntent
+// ReactToIntent transforms a JS call into an action, triggering the next rendering cycle
 func (ng *Engine) ReactToIntent(cf CallFrame) {
 	do := func(ctx Context) Context {
 		if cf.Gen != ng.gen {
@@ -165,7 +165,6 @@ type IntentType int
 
 //go:generate go tool stringer -type IntentType
 //go:generate go tool rxabi -type IntentType
-
 const (
 	NoIntent IntentType = iota
 	Click
@@ -194,6 +193,3 @@ type Entity = uint32
 type Counter Entity
 
 func (c *Counter) Inc() Entity { *c += 2; return Entity(*c) }
-
-// TODO(rdo) animation in renderloop
-// https://www.notion.so/wiggly-trout-software/Client-Architecture-128b4ef941b644a98f28d71904632aad#14429d96ccc44cc59b8826ef4649aa0a

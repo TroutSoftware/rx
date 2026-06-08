@@ -377,7 +377,7 @@ scriptDataEscapedEndTagOpen:
 
 scriptDataDoubleEscapeStart:
 	z.raw.End--
-	for i := 0; i < len("script"); i++ {
+	for i := range len("script") {
 		c = z.readByte()
 		if z.err != nil {
 			return
@@ -566,7 +566,7 @@ func (z *tokenizer) readUntilCloseAngle() {
 func (z *tokenizer) readMarkupDeclaration() TokenType {
 	z.data.Start = z.raw.End
 	var c [2]byte
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		c[i] = z.readByte()
 		if z.err != nil {
 			z.data.End = z.raw.End
@@ -594,7 +594,7 @@ func (z *tokenizer) readMarkupDeclaration() TokenType {
 // successful. The opening "<!" has already been consumed.
 func (z *tokenizer) readDoctype() bool {
 	const s = "DOCTYPE"
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := z.readByte()
 		if z.err != nil {
 			z.data.End = z.raw.End
@@ -619,7 +619,7 @@ func (z *tokenizer) readDoctype() bool {
 // successful. The opening "<!" has already been consumed.
 func (z *tokenizer) readCDATA() bool {
 	const s = "[CDATA["
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := z.readByte()
 		if z.err != nil {
 			z.data.End = z.raw.End
@@ -979,7 +979,7 @@ func checkEscape(s []byte) {
 }
 
 func checkLower(s []byte) {
-	for i := 0; i < len(s); i++ {
+	for i := range s {
 		c := s[i]
 		if 'A' <= c && c <= 'Z' {
 			panic("only use lower case attributes and tags")

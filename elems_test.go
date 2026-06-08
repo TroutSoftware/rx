@@ -12,18 +12,18 @@ func TestHTML(t *testing.T) {
 		tpl  string
 		want *Node
 	}{
-		{`<div>`, GetNode("div")},
-		{`<p role="label">`, GetNode("p").AddRole("label")},
+		{`<div>`, getNode("div")},
+		{`<p role="label">`, getNode("p").AddRole("label")},
 		{`<div class="flex">I can be &lt here<button>Click me</button></div>`,
-			GetNode("div").AddClasses("flex").
+			getNode("div").AddClasses("flex").
 				SetText("I can be &lt here").
-				AddChildren(GetNode("button").SetText("Click me"))},
+				AddChildren(getNode("button").SetText("Click me"))},
 		{`<div class="flex">I can be &lt;tag&gt; here<button>Click me</button></div>`,
-			GetNode("div").AddClasses("flex").
+			getNode("div").AddClasses("flex").
 				SetText("I can be <tag> here").
-				AddChildren(GetNode("button").SetText("Click me"))},
-		{`<div><div></div><div></div></div>`, GetNode("div").AddChildren(GetNode("div"), GetNode("div"))},
-		{`<svg><path/></svg>`, GetNode("svg").AddChildren(GetNode("path"))},
+				AddChildren(getNode("button").SetText("Click me"))},
+		{`<div><div></div><div></div></div>`, getNode("div").AddChildren(getNode("div"), getNode("div"))},
+		{`<svg><path/></svg>`, getNode("svg").AddChildren(getNode("path"))},
 	}
 
 	pubfields := cmpopts.IgnoreUnexported(Node{})
@@ -68,7 +68,7 @@ func BenchmarkHTMLSimpleDiv(b *testing.B) {
 	b.Run("quick-get", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			FreePool()
+			freePool()
 			for i := 0; i < 3000; i++ {
 				n := Get(`<div class="w-2 bg-zinc-200">`)
 				// prevent compiler to skip the work
@@ -81,9 +81,9 @@ func BenchmarkHTMLSimpleDiv(b *testing.B) {
 	b.Run("getnode", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			b.ReportAllocs()
-			FreePool()
+			freePool()
 			for i := 0; i < 3000; i++ {
-				n := GetNode("div").AddClasses("w-2 bg-zinc-200")
+				n := getNode("div").AddClasses("w-2 bg-zinc-200")
 				// prevent compiler to skip the work
 				if n == nil {
 					b.Fatal("invalid node returned")
