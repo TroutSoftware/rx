@@ -25,6 +25,8 @@ func (e Element) String() string {
 	return e.rxNode.ToHTML()
 }
 
+func (e Element) Exists() bool { return e != notFound }
+
 func Root(n *rx.Node) Element { return Element{rxNode: n} }
 
 // Matcher represent a way to find element in a page
@@ -49,10 +51,9 @@ func Locate(e Element, locs ...Matcher) Element {
 		case 0:
 			return e
 		case 1:
-			if matchChild(e.rxNode, filters[0]) {
+			if filters[0](e.rxNode) || matchChild(e.rxNode, filters[0]) {
 				return e
 			}
-			return notFound
 		}
 	}
 
@@ -188,7 +189,7 @@ var ariaRoles = map[string][]string{ // Document structure roles
 
 	"command":     {"button", "div"},
 	"composite":   {"div"},
-	"input":       {"input", "textarea", "select", "div"},
+	"input":       {"input", "textarea", "select"},
 	"landmark":    {"div", "span"},
 	"range":       {"input", "div"},
 	"roletype":    {"div"},
@@ -233,6 +234,10 @@ func HasText(pattern string) Matcher {
 		panic(fmt.Sprintf("invalid regexp %s: %s", pattern, err))
 	}
 	return func(n *rx.Node) bool {
+		switch n.TagName {
+		case "input":
+			return re.MatchString(n.GetAttr("value"))
+		}
 		return re.MatchString(n.Text)
 	}
 }

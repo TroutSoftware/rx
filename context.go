@@ -21,6 +21,13 @@ type Context struct {
 	vx *vctx
 }
 
+func NewContext() Context {
+	return Context{
+		ng: new(Engine),
+		vx: &vctx{kv: make(map[reflect.Type]any)},
+	}
+}
+
 // Dump provides a simple representation of context keys
 func (c Context) Dump() string {
 	var buf strings.Builder
