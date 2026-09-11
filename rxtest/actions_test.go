@@ -12,7 +12,7 @@ func TestDoAction(t *testing.T) {
 	tn := rx.Get(`<div name="test">`).OnIntent(rx.Click, func(ctx rx.Context) rx.Context {
 		return rx.WithValue(ctx, "hello")
 	})
-	nc := Click(ctx, Element{rxNode: tn})
+	nc := Click(Element{rxNode: tn})(ctx)
 	if got := rx.ValueOf[string](nc); got != "hello" {
 		t.Error("invalid state", got)
 	}
