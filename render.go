@@ -154,6 +154,9 @@ func (n *Node) Visit() {
 //  2. Children of Nothing nodes will become children of the parent of the Nothing node.
 func Nothing(ws ...*Node) *Node { return getNode("nothing").AddChildren(ws...) }
 
+// IsNothing returns true if root is empty and has no children
+func IsNothing(ws *Node) bool { return ws.TagName == "nothing" && len(ws.Children) == 0 }
+
 type Attr struct{ Name, Value string }
 
 type poolNode struct {
