@@ -25,6 +25,7 @@ type Node struct {
 }
 
 func (n *Node) SetText(text string) *Node { n.Text = text; return n }
+func (n *Node) String() string            { return fmt.Sprintf("Node(%s)", n.TagName) }
 
 func (n *Node) AddChildren(cs ...*Node) *Node { n.Children = append(n.Children, cs...); return n }
 
@@ -285,38 +286,49 @@ func (n *Node) Build(_ Context) *Node { return n }
 // As such, there is no way to attach a callback to an entity.
 func (n *Node) ToHTML() string {
 	var buf strings.Builder
-	serializeHTML(n, &buf)
+	serializeHTML(n, &buf, 0)
 	return buf.String()
 }
 
-func serializeHTML(n *Node, buf *strings.Builder) {
+func serializeHTML(n *Node, buf *strings.Builder, depth int) {
 	// skip nothing node
 	if n.IsNothing() {
 		for _, c := range n.Children {
 			assert(c != nil, "nil child in node: %v", n)
-			serializeHTML(c, buf)
+			serializeHTML(c, buf, depth)
 		}
 		return
 	}
 
-	fmt.Fprintf(buf, "<%s ", n.TagName)
+	pfix := strings.Repeat(" ", depth)
+	fmt.Fprintf(buf, "\n%s<%s", pfix, n.TagName)
 	if len(n.Classes) > 0 {
-		fmt.Fprintf(buf, "class=\"%s\" ", n.Classes)
+		cls := n.Classes
+		// if too many classes (often with Tailwind), displays a useful
+		// sub-set, cut at word boundary
+		if len(n.Classes) > 70 {
+			bk1 := strings.Index(cls[35:], " ")
+			bk2 := strings.Index(cls[len(cls)-35:], " ")
+			cls = cls[:bk1+35] + " ... " + cls[len(cls)-35+bk2+1:]
+		}
+		fmt.Fprintf(buf, ` class="%s"`, cls)
 	}
 
 	for _, a := range n.Attrs {
-		fmt.Fprintf(buf, "%s=\"%s\"", a.Name, a.Value)
+		fmt.Fprintf(buf, ` %s="%s"`, a.Name, a.Value)
 	}
 	fmt.Fprint(buf, ">")
 
 	if n.Text != "" {
-		fmt.Fprint(buf, n.Text)
+		fmt.Fprint(buf, strings.TrimSpace(n.Text))
 	}
 
 	for _, c := range n.Children {
-		serializeHTML(c, buf)
+		serializeHTML(c, buf, depth+1)
 	}
-	fmt.Fprintf(buf, "</%s>", n.TagName)
+	if len(n.Children) > 0 {
+		fmt.Fprintf(buf, "\n%s</%s>", pfix, n.TagName)
+	}
 }
 
 // using an alias let's us run go generate but do not alter existing code
