@@ -71,8 +71,11 @@ func match(node, target *rx.Node) bool {
 		}
 	}
 
-	if fn := target.GetAttr("name"); fn != "" && fn != node.GetAttr("name") {
-		return false
+	mattr := []string{"name", "role", "aria-label"}
+	for _, attr := range mattr {
+		if fn := target.GetAttr(attr); fn != "" && fn != node.GetAttr(attr) {
+			return false
+		}
 	}
 
 	return true
