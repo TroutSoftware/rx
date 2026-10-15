@@ -17,6 +17,8 @@ func RedirectTo(url string) Action {
 	}
 }
 
+type UserInput string
+
 // ReadValue is available on Change and Blur intents
 // It reads the value of the underlying element (e.g. input)
 func ReadInput(ctx Context) string { return R1(ctx) }
