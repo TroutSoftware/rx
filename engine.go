@@ -34,11 +34,7 @@ type Engine struct {
 type RootWidget Widget
 
 // New initializes a rendering engine, rooted at root.
-// The second value is a start function, to execute when rendering the engine:
-//
-//	ngx, start := rx.New()
-//	// finish initialization with ngx
-//	start()
+// Actions are executed before the engine is returned, so can be relied upon for the initial view.
 func New(root Widget, ctx ...Action) *Engine {
 	ng := &Engine{
 		XAS:        make(chan XAS),
@@ -77,6 +73,11 @@ func New(root Widget, ctx ...Action) *Engine {
 	// empty action primes the loop
 
 	return ng
+}
+
+// Async runs action in the background (usually for side-effects).
+func (ng *Engine) Async(action Action) {
+	go func() { ng.Actions <- action }()
 }
 
 func Mouse_(ctx Context) Coord         { return ctx.ng.Mouse }
