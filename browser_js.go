@@ -11,10 +11,20 @@ import (
 // It should be triggered by click event only to prevent anti-popup
 func RedirectTo(url string) Action {
 	return func(ctx Context) Context {
-		S1(ctx, "redirect")
-		S2(ctx, url)
-		return ctx
+		return WithValues(ctx, redirectKey{URL: url, Gen: ctx.ng.gen})
 	}
+}
+
+func RedirectToNew(url string) Action {
+	return func(ctx Context) Context {
+		return WithValues(ctx, redirectKey{URL: url, Blank: true, Gen: ctx.ng.gen})
+	}
+}
+
+type redirectKey struct {
+	URL   string
+	Blank bool
+	Gen   int
 }
 
 type UserInput string
@@ -68,6 +78,28 @@ func ReadFile(dst io.Writer) Action {
 			return js.Null()
 		})
 		S2(ctx, chunk)
+		return ctx
+	}
+}
+
+// CopyToClipboard has two variations based on flag:
+// copies just text
+// copies text preceded by domain as complete url
+func CopyToClipboard(text string, flag string) Action {
+	return func(ctx Context) Context {
+		S1(ctx, "copyToClipboard")
+		S2(ctx, text)
+		S3(ctx, flag)
+		return ctx
+	}
+}
+
+// UploadTo upload an attachment. Based on flag it may call different server API
+func UploadTo(id string, flag string) Action {
+	return func(ctx Context) Context {
+		S1(ctx, "upload-to")
+		S2(ctx, id)
+		S3(ctx, flag)
 		return ctx
 	}
 }

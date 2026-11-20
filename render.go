@@ -158,6 +158,20 @@ func Nothing(ws ...*Node) *Node { return getNode("nothing").AddChildren(ws...) }
 // IsNothing returns true if root is empty and has no children
 func IsNothing(ws *Node) bool { return ws.TagName == "nothing" && len(ws.Children) == 0 }
 
+func Location(ctx Context) (*Node, bool) {
+	redirect := ValueOf[redirectKey](ctx)
+	if redirect.URL == "" || redirect.Gen != ctx.ng.gen {
+		return Nothing(), false
+	}
+	var target string
+	if redirect.Blank {
+		target = "_blank"
+	} else {
+		target = "_self"
+	}
+	return getNode("redirect").AddAttr("url", redirect.URL, "target", target), true
+}
+
 type Attr struct{ Name, Value string }
 
 type poolNode struct {
@@ -239,6 +253,10 @@ func serialize(n *Node, tree *etree, ctr *Counter, vm XAS) XAS {
 
 		})
 
+		return vm
+
+	case "redirect":
+		vm = vm.AddInstr(OpRedirect, n.GetAttr("url"), n.GetAttr("target"))
 		return vm
 	}
 	vm = vm.AddInstr(OpCreateElement, n.TagName)
@@ -346,6 +364,7 @@ const (
 	OpReuse
 	OpReID
 	OpNext
+	OpRedirect
 )
 
 type XAS []byte
